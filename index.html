@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Palantir Investment Matrix</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-6">
+    <div class="max-w-6xl mx-auto space-y-6">
+        <!-- Header -->
+        <header class="border-b border-gray-700 pb-4">
+            <h1 class="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
+                📈 Palantir Investment Matrix
+            </h1>
+            <p class="text-sm text-gray-400 mt-1">Live Data + Monte Carlo Risk Analysis</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Investment -->
+            <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow">
+                <h2 class="text-lg font-bold text-teal-400 border-b border-gray-700 pb-2 mb-4">Investment</h2>
+                
+                <div class="space-y-4">
+                    <!-- Ticker -->
+                    <div>
+                        <label class="block text-xs uppercase tracking-wider text-gray-400 font-semibold mb-1">Ticker Symbol</label>
+                        <input type="text" id="ticker" value="LMT" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white font-mono text-lg uppercase focus:outline-none focus:border-teal-500">
+                    </div>
+
+                    <!-- Current Share Price (Editable) -->
+                    <div>
+                        <label class="block text-xs uppercase tracking-wider text-gray-400 font-semibold mb-1">Current Share Price ($)</label>
+                        <input type="number" id="sharePrice" value="450" step="0.01"
+                               class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white font-mono text-lg focus:outline-none focus:border-teal-500">
+                    </div>
+
+                    <!-- Number of Shares -->
+                    <div>
+                        <label class="block text-xs uppercase tracking-wider text-gray-400 font-semibold mb-1">Number of Shares</label>
+                        <input type="number" id="shares" value="100"
+                               class="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-2.5 text-white font-mono text-lg focus:outline-none focus:border-teal-500">
+                    </div>
+
+                    <!-- Portfolio Value -->
+                    <div>
+                        <label class="block text-xs uppercase tracking-wider text-gray-400 font-semibold mb-1">Portfolio Value ($)</label>
+                        <input type="text" id="portfolioValue" readonly
+                               class="w-full bg-gray-900 border border-teal-600 rounded-lg px-4 py-2.5 text-white font-mono text-lg font-bold focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- API Key (Optional) -->
+                <div class="mt-4">
+                    <label class="block text-xs uppercase tracking-wider text-gray-400 font-semibold mb-1">FMP API Key (Optional)</label>
+                    <input type="text" id="apiKey" value="snIRw7gixHVNguwSkXfowKFUPMMQ8Fsk" 
+                           class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-teal-500">
+                </div>
+
+                <button onclick="tryFetchLivePrice()" 
+                        class="mt-4 w-full bg-teal-500 hover:bg-teal-600 text-gray-900 font-bold py-2.5 px-4 rounded-xl text-sm transition">
+                    Try Fetch Live Price
+                </button>
+                <p class="text-[10px] text-gray-500 mt-1 text-center">Live fetch may be limited on your plan. You can enter price manually.</p>
+
+                <!-- CAGR Controls -->
+                <div class="mt-5 pt-4 border-t border-gray-700">
+                    <h3 class="text-sm font-semibold text-gray-300 mb-3">Adjust Scenario CAGRs</h3>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div><label class="block text-xs text-red-400 mb-1">Bear</label>
+                            <select id="cagr-bear" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white font-mono"><option value="4.5" selected>4.5%</option></select></div>
+                        <div><label class="block text-xs text-blue-400 mb-1">Base</label>
+                            <select id="cagr-base" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white font-mono"><option value="11.5" selected>11.5%</option></select></div>
+                        <div><label class="block text-xs text-green-400 mb-1">Bull</label>
+                            <select id="cagr-bull" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white font-mono"><option value="16.5" selected>16.5%</option></select></div>
+                        <div><label class="block text-xs text-purple-400 mb-1">S&P</label>
+                            <select id="cagr-sp" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white font-mono"><option value="9.0" selected>9.0%</option></select></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Financial Metrics -->
+            <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow lg:col-span-2">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-lg font-bold text-teal-400">Financial Metrics</h2>
+                    <span id="metrics-date" class="text-xs text-gray-500"></span>
+                </div>
+                <table class="w-full text-sm">
+                    <thead class="text-xs uppercase text-gray-400"><tr><th class="p-3 text-left">Metric</th><th class="p-3 text-center">Value</th><th class="p-3 text-left">Source</th></tr></thead>
+                    <tbody id="metrics-body" class="text-gray-300"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Projections + Chart -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow">
+                <h3 class="text-md font-bold text-gray-200 uppercase tracking-wide border-b border-gray-700 pb-2 mb-4">
+                    Future Value Matrix <span id="matrix-ticker" class="text-teal-400 font-mono">LMT</span>
+                </h3>
+                <div class="space-y-3 text-sm">
+                    <div class="bg-gray-950 p-4 rounded-xl border border-red-900/40">
+                        <div class="flex justify-between"><span class="font-semibold text-red-400">🐻 Bear</span><span id="bear-cagr-label" class="text-xs">4.5% CAGR</span></div>
+                        <div class="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-400">
+                            <div>3yr: <span id="bear-3" class="font-mono text-white"></span></div>
+                            <div>5yr: <span id="bear-5" class="font-mono text-white"></span></div>
+                            <div>10yr: <span id="bear-10" class="font-mono text-white"></span></div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-950 p-4 rounded-xl border border-blue-900/40">
+                        <div class="flex justify-between"><span class="font-semibold text-blue-400">⚖️ Base</span><span id="base-cagr-label" class="text-xs">11.5% CAGR</span></div>
+                        <div class="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-400">
+                            <div>3yr: <span id="base-3" class="font-mono text-white"></span></div>
+                            <div>5yr: <span id="base-5" class="font-mono text-white"></span></div>
+                            <div>10yr: <span id="base-10" class="font-mono text-white"></span></div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-950 p-4 rounded-xl border border-green-900/40">
+                        <div class="flex justify-between"><span class="font-semibold text-green-400">🐂 Bull</span><span id="bull-cagr-label" class="text-xs">16.5% CAGR</span></div>
+                        <div class="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-400">
+                            <div>3yr: <span id="bull-3" class="font-mono text-white"></span></div>
+                            <div>5yr: <span id="bull-5" class="font-mono text-white"></span></div>
+                            <div>10yr: <span id="bull-10" class="font-mono text-white"></span></div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-950 p-4 rounded-xl border border-gray-700">
+                        <div class="flex justify-between"><span class="font-semibold text-purple-400">📊 S&P 500</span><span id="sp-cagr-label" class="text-xs">9.0% CAGR</span></div>
+                        <div class="mt-2 grid grid-cols-3 gap-2 text-xs text-gray-400">
+                            <div>3yr: <span id="sp-3" class="font-mono text-white"></span></div>
+                            <div>5yr: <span id="sp-5" class="font-mono text-white"></span></div>
+                            <div>10yr: <span id="sp-10" class="font-mono text-white"></span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow lg:col-span-2">
+                <h3 class="text-md font-bold mb-4">Performance Horizon (Deterministic)</h3>
+                <div class="h-[300px]"><canvas id="projectionChart"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Monte Carlo -->
+        <div class="bg-gray-800 p-5 rounded-2xl border border-gray-700 shadow">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-teal-400">Monte Carlo Risk Simulation</h2>
+                <button onclick="runMonteCarlo()" class="bg-teal-500 hover:bg-teal-600 text-gray-900 font-bold px-5 py-2 rounded-xl text-sm">
+                    Run Monte Carlo
+                </button>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div>
+                    <label class="text-xs text-gray-400">Expected Annual Return (Mean %)</label>
+                    <input type="number" id="mc-mean" value="11.5" step="0.5" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400">Annual Volatility (Std Dev %)</label>
+                    <input type="number" id="mc-vol" value="18" step="1" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white">
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400">Number of Simulations</label>
+                    <select id="mc-sims" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white">
+                        <option value="3000">3,000</option>
+                        <option value="5000" selected>5,000</option>
+                        <option value="10000">10,000</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-gray-400">Investment Horizon (Years)</label>
+                    <input type="number" id="mc-years" value="10" class="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 text-white">
+                </div>
+            </div>
+
+            <div id="mc-results" class="hidden">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4 text-sm">
+                    <div class="bg-gray-950 p-3 rounded">
+                        <div class="text-gray-400 text-xs">Median Outcome</div>
+                        <div id="mc-median" class="font-mono text-xl text-white"></div>
+                    </div>
+                    <div class="bg-gray-950 p-3 rounded">
+                        <div class="text-gray-400 text-xs">5th Percentile (Bad Case)</div>
+                        <div id="mc-p5" class="font-mono text-xl text-red-400"></div>
+                    </div>
+                    <div class="bg-gray-950 p-3 rounded">
+                        <div class="text-gray-400 text-xs">95th Percentile (Good Case)</div>
+                        <div id="mc-p95" class="font-mono text-xl text-green-400"></div>
+                    </div>
+                    <div class="bg-gray-950 p-3 rounded">
+                        <div class="text-gray-400 text-xs">Prob. Beat S&P Baseline</div>
+                        <div id="mc-prob-beat" class="font-mono text-xl text-teal-400"></div>
+                    </div>
+                </div>
+                <div class="h-[220px]"><canvas id="mcHistogram"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let projectionChart = null;
+        let mcHistogram = null;
+
+        function getCurrentCAGRs() {
+            return {
+                bear: parseFloat(document.getElementById('cagr-bear').value) / 100,
+                base: parseFloat(document.getElementById('cagr-base').value) / 100,
+                bull: parseFloat(document.getElementById('cagr-bull').value) / 100,
+                sp: parseFloat(document.getElementById('cagr-sp').value) / 100
+            };
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(Math.round(amount));
+        }
+
+        function calculateFutureValue(principal, cagr, years) {
+            return principal * Math.pow(1 + cagr, years);
+        }
+
+        function calculateProjections() {
+            const ticker = document.getElementById('ticker').value.trim().toUpperCase() || 'LMT';
+            const principal = parseFloat(document.getElementById('principal').value) || 10000;
+            const cagrs = getCurrentCAGRs();
+
+            document.getElementById('matrix-ticker').textContent = ticker;
+            document.getElementById('bear-cagr-label').textContent = (cagrs.bear * 100).toFixed(1) + '% CAGR';
+            document.getElementById('base-cagr-label').textContent = (cagrs.base * 100).toFixed(1) + '% CAGR';
+            document.getElementById('bull-cagr-label').textContent = (cagrs.bull * 100).toFixed(1) + '% CAGR';
+            document.getElementById('sp-cagr-label').textContent = (cagrs.sp * 100).toFixed(1) + '% CAGR';
+
+            const scenarios = ['bear', 'base', 'bull', 'sp'];
+            const periods = [3, 5, 10];
+
+            scenarios.forEach(sc => {
+                periods.forEach(y => {
+                    const val = calculateFutureValue(principal, cagrs[sc], y);
+                    const el = document.getElementById(`${sc}-${y}`);
+                    if (el) el.textContent = formatCurrency(val).replace('$', '');
+                });
+            });
+
+            updateProjectionChart(principal, cagrs);
+        }
+
+        function updateProjectionChart(principal, cagrs) {
+            const ctx = document.getElementById('projectionChart');
+            if (!ctx) return;
+
+            const years = Array.from({ length: 11 }, (_, i) => i);
+            const datasets = [
+                { label: `Bear (${(cagrs.bear*100).toFixed(1)}%)`, data: years.map(y => calculateFutureValue(principal, cagrs.bear, y)), borderColor: '#f87171', tension: 0.3 },
+                { label: `Base (${(cagrs.base*100).toFixed(1)}%)`, data: years.map(y => calculateFutureValue(principal, cagrs.base, y)), borderColor: '#60a5fa', tension: 0.3 },
+                { label: `Bull (${(cagrs.bull*100).toFixed(1)}%)`, data: years.map(y => calculateFutureValue(principal, cagrs.bull, y)), borderColor: '#4ade80', tension: 0.3 },
+                { label: `S&P (${(cagrs.sp*100).toFixed(1)}%)`, data: years.map(y => calculateFutureValue(principal, cagrs.sp, y)), borderColor: '#c084fc', tension: 0.3 }
+            ];
+
+            if (projectionChart) projectionChart.destroy();
+            projectionChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: years, datasets },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top', labels: { color: '#9ca3af' } } },
+                    scales: {
+                        x: { title: { display: true, text: 'Years', color: '#9ca3af' }, grid: { color: '#374151' } },
+                        y: { title: { display: true, text: 'Value ($)', color: '#9ca3af' }, grid: { color: '#374151' }, ticks: { callback: v => '$' + (v/1000) + 'k' } }
+                    }
+                }
+            });
+        }
+
+        // Auto-calculate Portfolio Value
+        function setupAutoCalculation() {
+            const sharePriceInput = document.getElementById('sharePrice');
+            const sharesInput = document.getElementById('shares');
+            const portfolioValueInput = document.getElementById('portfolioValue');
+
+            function updatePortfolioValue() {
+                const price = parseFloat(sharePriceInput.value) || 0;
+                const shares = parseFloat(sharesInput.value) || 0;
+                portfolioValueInput.value = (price * shares).toFixed(2);
+            }
+
+            sharePriceInput.addEventListener('input', updatePortfolioValue);
+            sharesInput.addEventListener('input', updatePortfolioValue);
+
+            // Initial calculation
+            updatePortfolioValue();
+        }
+
+        // Try to fetch live price (graceful failure)
+        async function tryFetchLivePrice() {
+            const ticker = document.getElementById('ticker').value.trim().toUpperCase();
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const sharePriceInput = document.getElementById('sharePrice');
+            const tbody = document.getElementById('metrics-body');
+
+            tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-gray-400">Trying to fetch live price...</td></tr>`;
+
+            try {
+                const url = `https://financialmodelingprep.com/api/v3/quote/${ticker}?apikey=${apiKey}`;
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    throw new Error(`API returned ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (!data || data.length === 0) throw new Error("No data returned.");
+
+                const price = data[0].price;
+                sharePriceInput.value = price.toFixed(2);
+
+                // Update portfolio value
+                const shares = parseFloat(document.getElementById('shares').value) || 0;
+                document.getElementById('portfolioValue').value = (price * shares).toFixed(2);
+
+                tbody.innerHTML = `
+                    <tr class="border-b border-gray-700">
+                        <td class="p-3 font-medium text-white">Current Price</td>
+                        <td class="p-3 text-center font-mono">$${price.toFixed(2)}</td>
+                        <td class="p-3 text-gray-400">FMP API</td>
+                    </tr>
+                `;
+
+            } catch (error) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="3" class="p-4 text-center text-orange-400">
+                            Could not fetch live price.<br>
+                            <span class="text-xs">You can enter the share price manually above.</span>
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        function normalRandom(mean, stdDev) {
+            let u = 0, v = 0;
+            while (u === 0) u = Math.random();
+            while (v === 0) v = Math.random();
+            let num = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+            return num * stdDev + mean;
+        }
+
+        function runMonteCarlo() {
+            const principal = parseFloat(document.getElementById('portfolioValue').value) || 10000;
+            const meanReturn = parseFloat(document.getElementById('mc-mean').value) / 100;
+            const volatility = parseFloat(document.getElementById('mc-vol').value) / 100;
+            const numSims = parseInt(document.getElementById('mc-sims').value);
+            const years = parseInt(document.getElementById('mc-years').value);
+
+            const finalValues = [];
+            for (let i = 0; i < numSims; i++) {
+                let value = principal;
+                for (let y = 0; y < years; y++) {
+                    value *= (1 + normalRandom(meanReturn, volatility));
+                }
+                finalValues.push(value);
+            }
+
+            finalValues.sort((a, b) => a - b);
+
+            const median = finalValues[Math.floor(numSims * 0.5)];
+            const p5 = finalValues[Math.floor(numSims * 0.05)];
+            const p95 = finalValues[Math.floor(numSims * 0.95)];
+
+            const spBaseline = principal * Math.pow(1.09, years);
+            const probBeat = (finalValues.filter(v => v > spBaseline).length / numSims * 100).toFixed(1);
+
+            document.getElementById('mc-results').classList.remove('hidden');
+            document.getElementById('mc-median').textContent = formatCurrency(median);
+            document.getElementById('mc-p5').textContent = formatCurrency(p5);
+            document.getElementById('mc-p95').textContent = formatCurrency(p95);
+            document.getElementById('mc-prob-beat').textContent = probBeat + '%';
+
+            drawMCHistogram(finalValues);
+        }
+
+        function drawMCHistogram(values) {
+            const ctx = document.getElementById('mcHistogram');
+            if (mcHistogram) mcHistogram.destroy();
+
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            const binCount = 20;
+            const binSize = (max - min) / binCount;
+            const bins = Array(binCount).fill(0);
+
+            values.forEach(v => {
+                let idx = Math.floor((v - min) / binSize);
+                if (idx >= binCount) idx = binCount - 1;
+                bins[idx]++;
+            });
+
+            const labels = bins.map((_, i) => '$' + Math.round(min + i * binSize).toLocaleString());
+
+            mcHistogram = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: bins,
+                        backgroundColor: 'rgba(45, 212, 191, 0.6)',
+                        borderColor: '#14b8a6',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#9ca3af', maxTicksLimit: 8 } },
+                        y: { ticks: { color: '#9ca3af' } }
+                    }
+                }
+            });
+        }
+
+        function initializeApp() {
+            document.getElementById('ticker').value = 'LMT';
+            document.getElementById('principal').value = '10000';
+
+            // Initial portfolio value calculation
+            const sharePrice = parseFloat(document.getElementById('sharePrice').value) || 0;
+            const shares = parseFloat(document.getElementById('shares').value) || 0;
+            document.getElementById('portfolioValue').value = (sharePrice * shares).toFixed(2);
+
+            calculateProjections();
+            setupAutoCalculation(); // from previous version, but simplified here
+
+            document.getElementById('ticker').addEventListener('input', calculateProjections);
+            document.getElementById('principal').addEventListener('input', calculateProjections);
+            ['cagr-bear', 'cagr-base', 'cagr-bull', 'cagr-sp'].forEach(id => {
+                document.getElementById(id).addEventListener('change', calculateProjections);
+            });
+        }
+
+        // Simple auto calculation setup
+        function setupAutoCalculation() {
+            const sharePriceInput = document.getElementById('sharePrice');
+            const sharesInput = document.getElementById('shares');
+            const portfolioValueInput = document.getElementById('portfolioValue');
+
+            function update() {
+                const price = parseFloat(sharePriceInput.value) || 0;
+                const shares = parseFloat(sharesInput.value) || 0;
+                portfolioValueInput.value = (price * shares).toFixed(2);
+            }
+
+            sharePriceInput.addEventListener('input', update);
+            sharesInput.addEventListener('input', update);
+        }
+
+        window.onload = initializeApp;
+    </script>
+</body>
+</html>
