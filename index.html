@@ -33,10 +33,12 @@
                     </div>
                 </div>
 
+                <!-- New Paid API Key -->
                 <div class="mt-4">
                     <label class="block text-xs uppercase tracking-wider text-gray-400 font-semibold mb-1">FMP API Key</label>
-                    <input type="text" id="apiKey" value="qELJrzXwRxfzhXul6CxlL4vq3FWLeB6g" 
+                    <input type="text" id="apiKey" value="snIRw7gixHVNguwSkXfowKFUPMMQ8Fsk" 
                            class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-teal-500">
+                    <p class="text-[10px] text-gray-500 mt-1">Your paid FMP API Key is pre-filled</p>
                 </div>
 
                 <button onclick="fetchLiveMetrics()" 
@@ -70,7 +72,6 @@
                     <thead class="text-xs uppercase text-gray-400"><tr><th class="p-3 text-left">Metric</th><th class="p-3 text-center">Value</th><th class="p-3 text-left">Source</th></tr></thead>
                     <tbody id="metrics-body" class="text-gray-300"></tbody>
                 </table>
-                <p class="text-[10px] text-gray-500 mt-2">Note: Full financial ratios may require a paid FMP plan. Basic data shown below.</p>
             </div>
         </div>
 
@@ -251,7 +252,7 @@
             });
         }
 
-        // Using more reliable /profile endpoint for free keys
+        // Using /ratios endpoint (works well with paid plans)
         async function fetchLiveMetrics() {
             const ticker = document.getElementById('ticker').value.trim().toUpperCase();
             const apiKey = document.getElementById('apiKey').value.trim();
@@ -261,7 +262,7 @@
             tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-gray-400">Fetching live data for ${ticker}...</td></tr>`;
 
             try {
-                const url = `https://financialmodelingprep.com/api/v3/profile/${ticker}?apikey=${apiKey}`;
+                const url = `https://financialmodelingprep.com/api/v3/ratios/${ticker}?apikey=${apiKey}`;
                 const response = await fetch(url);
 
                 if (!response.ok) {
@@ -269,16 +270,16 @@
                 }
 
                 const data = await response.json();
-                if (!data || data.length === 0) throw new Error("No data returned.");
+                if (!data || data.length === 0) throw new Error("No data returned for this ticker.");
 
-                const company = data[0];
+                const latest = data[0];
 
                 const metrics = [
-                    { name: "Company Name", value: company.companyName || "N/A" },
-                    { name: "Sector / Industry", value: `${company.sector || 'N/A'} / ${company.industry || 'N/A'}` },
-                    { name: "Current Price", value: company.price ? "$" + company.price.toFixed(2) : "N/A" },
-                    { name: "Market Cap", value: company.mktCap ? "$" + (company.mktCap / 1e9).toFixed(1) + "B" : "N/A" },
-                    { name: "CEO", value: company.ceo || "N/A" }
+                    { name: "Price-to-Earnings (P/E)", value: latest.priceEarningsRatio ? latest.priceEarningsRatio.toFixed(1) + "x" : "N/A" },
+                    { name: "EV / EBITDA", value: latest.enterpriseValueMultiple ? latest.enterpriseValueMultiple.toFixed(1) + "x" : "N/A" },
+                    { name: "Operating Margin (TTM)", value: latest.operatingProfitMargin ? (latest.operatingProfitMargin * 100).toFixed(1) + "%" : "N/A" },
+                    { name: "Return on Equity (ROE)", value: latest.returnOnEquity ? (latest.returnOnEquity * 100).toFixed(1) + "%" : "N/A" },
+                    { name: "Free Cash Flow Yield", value: latest.freeCashFlowYield ? (latest.freeCashFlowYield * 100).toFixed(1) + "%" : "N/A" }
                 ];
 
                 tbody.innerHTML = metrics.map(m => `
@@ -290,7 +291,7 @@
                 `).join('');
 
                 document.getElementById('metrics-ticker').textContent = ticker;
-                dateEl.textContent = `As of latest data`;
+                dateEl.textContent = `As of ${latest.date || 'latest'}`;
 
             } catch (error) {
                 tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-red-400">${error.message}</td></tr>`;
