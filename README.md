@@ -1,4 +1,4 @@
-# Palantir Investment Evaluator
+# Stock Investment Evaluator
 
 A professional web-based investment analysis tool for evaluating companies that use Palantir software platforms.
 
